@@ -1,0 +1,13 @@
+deb http://security.debian.org/ stretch/updates main contrib
+deb-src http://security.debian.org/ stretch/updates main contrib
+
+# stretch-updates, previously known as 'volatile'
+deb http://debian.mirrors.ovh.net/debian/ stretch-updates main contrib
+deb-src http://debian.mirrors.ovh.net/debian/ stretch-updates main contrib
+
+# stretch-backports, previously on backports.debian.org
+deb http://debian.mirrors.ovh.net/debian/ stretch-backports main contrib
+deb-src http://debian.mirrors.ovh.net/debian/ stretch-backports main contrib
+
+deb http://debian.mirrors.ovh.net/debian/ stretch main contrib
+deb-src http://debian.mirrors.ovh.net/debian/ stretch main contrib
