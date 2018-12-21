@@ -16,10 +16,6 @@ get_prompt_symbol() {
 	[[ $UID == 0 ]] && echo "#" || echo "\$"
 }
 
-export GIT_PS1_SHOWDIRTYSTATE=1
-export GIT_PS1_SHOWSTASHSTATE=1
-export GIT_PS1_SHOWUNTRACKEDFILES=0
-
 export PS1="$GY[$Y\u$GY@$P\h$GY:$B\w\$(__git_ps1 \"$GY|$LB%s\")$GY]$W\$(get_prompt_symbol) "
 
 export TERM='xterm-color'
