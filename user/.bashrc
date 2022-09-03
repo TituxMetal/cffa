@@ -18,7 +18,7 @@ get_prompt_symbol() {
 
 export PS1="$GY[$Y\u$GY@$P\h$GY:$B\w$GY]$W\$(get_prompt_symbol) "
 
-export TERM='xterm-color'
+export TERM='xterm-256color'
 
 ## COMPLETION
 complete -cf sudo
@@ -37,7 +37,7 @@ export EDITOR="nano"
 # make multiple shells share the same history file
 export HISTSIZE=9000000            # bash history will save N commands
 export HISTFILESIZE=${HISTSIZE} # bash will remember N commands
-export HISTCONTROL=ignoreboth   # ingore duplicates and spaces
+export HISTCONTROL=ignoreboth   # ignore duplicates and spaces
 export HISTIGNORE='&:ls:ll:la:cd:exit:clear:history'
 
 # AUTOCOLOR
