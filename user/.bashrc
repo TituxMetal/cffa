@@ -16,7 +16,7 @@ get_prompt_symbol() {
 	[[ $UID == 0 ]] && echo "#" || echo "\$"
 }
 
-export PS1="$GY[$Y\u$GY@$P\h$GY:$B\w$GY]$W\$(get_prompt_symbol) "
+export PS1="$GY[$Y\u$GY@$P\h$GY:$B\w$GY] $LB\$(date +%H:%M:%S)\n$W\$(get_prompt_symbol) "
 
 export TERM='xterm-256color'
 
