@@ -1,0 +1,27 @@
+/srv/logs/nginx/access.log
+/srv/logs/nginx/error.log {
+  rotate 7
+  daily
+  size=10M
+  copytruncate
+  missingok
+  notifempty
+  compress
+  delaycompress
+  sharedscripts
+  postrotate
+    docker inspect -f '{{ .State.Pid }}' $(docker ps --filter name=^/nginx- --quiet) | xargs kill -USR1
+  endscript
+}
+
+/srv/logs/nginx-proxy-manager/fallback_*.log
+/srv/logs/nginx-proxy-manager/proxy-host-*.log {
+  rotate 7
+  daily
+  size=10M
+  copytruncate
+  missingok
+  notifempty
+  compress
+  delaycompress
+}
