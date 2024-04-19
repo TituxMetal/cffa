@@ -1,13 +1,13 @@
-deb http://debian.mirrors.ovh.net/debian/ bullseye main contrib non-free
-deb-src http://debian.mirrors.ovh.net/debian/ bullseye main contrib non-free
+deb http://debian.mirrors.ovh.net/debian/ bookworm main contrib non-free non-free non-free-firmware
+deb-src http://debian.mirrors.ovh.net/debian/ bookworm main contrib non-free non-free non-free-firmware
 
-deb http://deb.debian.org/debian-security/ bullseye-security main contrib non-free
-deb-src http://deb.debian.org/debian-security/ bullseye-security main contrib non-free
+deb http://deb.debian.org/debian-security/ bookworm-security main contrib non-free non-free non-free-firmware
+deb-src http://deb.debian.org/debian-security/ bookworm-security main contrib non-free non-free non-free-firmware
 
-# bullseye-updates, previously known as 'volatile'
-deb http://debian.mirrors.ovh.net/debian/ bullseye-updates main contrib non-free
-deb-src http://debian.mirrors.ovh.net/debian/ bullseye-updates main contrib non-free
+# bookworm-updates, previously known as 'volatile'
+deb http://debian.mirrors.ovh.net/debian/ bookworm-updates main contrib non-free non-free non-free-firmware
+deb-src http://debian.mirrors.ovh.net/debian/ bookworm-updates main contrib non-free non-free non-free-firmware
 
 # Debian backports
-deb http://deb.debian.org/debian bullseye-backports main contrib non-free
-deb-src http://deb.debian.org/debian bullseye-backports main contrib non-free
+deb http://deb.debian.org/debian bookworm-backports main contrib non-free non-free non-free-firmware
+deb-src http://deb.debian.org/debian bookworm-backports main contrib non-free non-free non-free-firmware
