@@ -62,6 +62,9 @@ alias mkdir='mkdir -p -v'
 alias more='less'
 alias nano='nano -WciSH$'
 alias ping='ping -c 5'
+alias patch='sudo apt update && sudo apt upgrade && sudo apt dist-upgrade'
+alias clean='sudo apt clean && sudo apt autoclean && sudo apt -y autoremove --purge'
+alias installed='apt list --installed'
 
 # ENTER AND LIST DIRECTORY
 function cd() { builtin cd -- "$@" && { [ "$PS1" = "" ] || ls -hrt --color; }; }
