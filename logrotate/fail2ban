@@ -1,4 +1,4 @@
-/var/log/fail2ban.log {
+/srv/logs/fail2ban/fail2ban.log {
   rotate 7
   daily
   size=10M
