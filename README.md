@@ -35,7 +35,7 @@ The following table shows where each configuration file is deployed on the targe
 
 | Source File                      | Target Path on Server                          | Owner | Permissions |
 |----------------------------------|------------------------------------------------|-------|-------------|
-| `apt/sources.list`              | `/etc/apt/sources.list`                        | root  | 644         |
+| `apt/sources.list`              | `/etc/apt/sources.list.d/sources.list`         | root  | 644         |
 | `apt/docker.list`               | `/etc/apt/sources.list.d/docker.list`          | root  | 644         |
 | `exim/update-exim4.conf.conf`   | `/etc/exim4/update-exim4.conf.conf`            | root  | 644         |
 | `logrotate/docker-container`    | `/etc/logrotate.d/docker-container`            | root  | 644         |
@@ -49,17 +49,23 @@ The following table shows where each configuration file is deployed on the targe
 
 ### apt/sources.list
 
-Debian Bookworm package repositories with all four components enabled: `main`, `contrib`,
-`non-free`, and `non-free-firmware`. Includes binary and source entries for:
+Debian Trixie (Debian 13) package repositories with all four components enabled: `main`,
+`contrib`, `non-free`, and `non-free-firmware`. Includes binary and source entries for:
 
-- Main Bookworm repository
-- Security updates (`bookworm-security`)
-- Point release updates (`bookworm-updates`)
-- Backports (`bookworm-backports`)
+- Main Trixie repository
+- Security updates (`trixie-security`)
+- Point release updates (`trixie-updates`)
+- Backports (`trixie-backports`)
+
+**Target path.** Ansible does not write `/etc/apt/sources.list`: it writes
+`/etc/apt/sources.list.d/sources.list` (`aptRepoName: sources` in
+`roles/apt/repository/defaults/main.yaml`), and moves the distribution file to
+`/etc/apt/sources.list.backup` first. The same file lands on every host, whatever the
+provider image shipped.
 
 ### apt/docker.list
 
-Docker official APT repository for Debian Bookworm on the `amd64` architecture. Uses a GPG
+Docker official APT repository for Debian Trixie on the `amd64` architecture. Uses a GPG
 key stored at `/etc/apt/keyrings/docker.asc` for package verification. Only the `stable`
 channel is enabled.
 
@@ -112,6 +118,13 @@ Handles two sets of log files:
    reopens log files gracefully. Uses `sharedscripts` to run the post-rotate hook only once
    for both files.
 
+   These two files are written by the **web server container** (`main-site-<host>`, formerly
+   `nginx-<host>`), not by Nginx Proxy Manager: NPM keeps its own logs under
+   `/srv/logs/nginx-proxy-manager/`. The container filter matches both names
+   (`name=^/(main-site|nginx)-`) so hosts that have not been renamed yet are still covered.
+   The signal matters even with `copytruncate`: without a reopen, Nginx keeps writing at its
+   previous offset and leaves a sparse file.
+
 2. **Nginx Proxy Manager logs** (`/srv/logs/nginx-proxy-manager/fallback_*.log` and
    `proxy-host-*.log`) -- Standard rotation with no post-rotate hook required.
 
@@ -150,7 +163,7 @@ Htop v3.2.2 configuration with:
 
 ## Prerequisites
 
-**Target servers must run Debian 12 (Bookworm)** on the `amd64` architecture.
+**Target servers must run Debian 13 (Trixie)** on the `amd64` architecture.
 
 The following packages should be installed (or will be installed by the Ansible playbook) for
 the configuration files to take effect:
