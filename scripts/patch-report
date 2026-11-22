@@ -27,7 +27,7 @@ if [ -n "$installed" ] && [ "$installed" != "$running" ]; then
 fi
 
 host=$(hostname -s)
-log=$(sudo -n tail -n 40 "$LOG")
+log=$(sudo -n tail -n 40 "$LOG" | fold -s -w 900)
 
 {
   printf 'From: server+%s@lgdweb.fr\n' "$host"
@@ -38,4 +38,4 @@ log=$(sudo -n tail -n 40 "$LOG")
   printf '%s\n' "$log"
 } | sudo -n /usr/sbin/sendmail -f "server+$host@lgdweb.fr" -t
 
-touch "$STAMP"
+date '+%Y-%m-%d %H:%M:%S' > "$STAMP"
