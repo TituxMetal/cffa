@@ -13,15 +13,24 @@ configuration files consumed by the Ansible project.
 cffa/
 ├── apt/
 │   ├── sources.list               # Debian package repositories
-│   └── docker.list                # Docker official repository
+│   ├── docker.list                # Docker official repository
+│   ├── 22ansible-auto-upgrades     # APT periodic behaviour
+│   └── 52ansible-unattended-upgrades # Security-only unattended upgrades
 ├── exim/
 │   └── update-exim4.conf.conf     # Exim4 smarthost mail relay
 ├── logrotate/
 │   ├── docker-container           # Docker container log rotation
 │   ├── fail2ban                   # Fail2ban log rotation
 │   └── nginx                      # Nginx and Nginx Proxy Manager log rotation
+├── scripts/
+│   └── patch-report               # Daily security upgrade mail report
 ├── ssh/
 │   └── authorized_keys            # SSH public key for remote access
+├── systemd/
+│   ├── apt-daily-timer.conf       # Moves apt-daily.timer to 02:30
+│   ├── apt-daily-upgrade-timer.conf # Moves apt-daily-upgrade.timer to 03:00
+│   ├── patch-report.service       # Runs the report as the admin user
+│   └── patch-report.timer         # Runs the report at 03:40
 └── user/
     ├── .bashrc                    # Shell environment configuration
     └── .config/
@@ -33,17 +42,24 @@ cffa/
 
 The following table shows where each configuration file is deployed on the target server.
 
-| Source File                      | Target Path on Server                          | Owner | Permissions |
-|----------------------------------|------------------------------------------------|-------|-------------|
-| `apt/sources.list`              | `/etc/apt/sources.list.d/sources.list`         | root  | 644         |
-| `apt/docker.list`               | `/etc/apt/sources.list.d/docker.list`          | root  | 644         |
-| `exim/update-exim4.conf.conf`   | `/etc/exim4/update-exim4.conf.conf`            | root  | 644         |
-| `logrotate/docker-container`    | `/etc/logrotate.d/docker-container`            | root  | 644         |
-| `logrotate/fail2ban`            | `/etc/logrotate.d/fail2ban`                    | root  | 644         |
-| `logrotate/nginx`               | `/etc/logrotate.d/nginx`                       | root  | 644         |
-| `ssh/authorized_keys`           | `~/.ssh/authorized_keys`                       | user  | 600         |
-| `user/.bashrc`                  | `~/.bashrc`                                    | user  | 644         |
-| `user/.config/htop/htoprc`      | `~/.config/htop/htoprc`                        | user  | 644         |
+| Source File                            | Target Path on Server                                         | Owner | Permissions |
+| -------------------------------------- | ------------------------------------------------------------- | ----- | ----------- |
+| `apt/sources.list`                     | `/etc/apt/sources.list.d/sources.list`                        | root  | 644         |
+| `apt/docker.list`                      | `/etc/apt/sources.list.d/docker.list`                         | root  | 644         |
+| `apt/22ansible-auto-upgrades`          | `/etc/apt/apt.conf.d/22ansible-auto-upgrades`                | root  | 644         |
+| `apt/52ansible-unattended-upgrades`    | `/etc/apt/apt.conf.d/52ansible-unattended-upgrades`          | root  | 644         |
+| `exim/update-exim4.conf.conf`          | `/etc/exim4/update-exim4.conf.conf`                           | root  | 644         |
+| `logrotate/docker-container`           | `/etc/logrotate.d/docker-container`                           | root  | 644         |
+| `logrotate/fail2ban`                   | `/etc/logrotate.d/fail2ban`                                   | root  | 644         |
+| `logrotate/nginx`                      | `/etc/logrotate.d/nginx`                                      | root  | 644         |
+| `scripts/patch-report`                 | `~/bin/patch-report`                                          | user  | 755         |
+| `ssh/authorized_keys`                  | `~/.ssh/authorized_keys`                                      | user  | 600         |
+| `systemd/apt-daily-timer.conf`         | `/etc/systemd/system/apt-daily.timer.d/schedule.conf`         | root  | 644         |
+| `systemd/apt-daily-upgrade-timer.conf` | `/etc/systemd/system/apt-daily-upgrade.timer.d/schedule.conf` | root  | 644         |
+| `systemd/patch-report.service`         | `/etc/systemd/system/patch-report.service`                    | root  | 644         |
+| `systemd/patch-report.timer`           | `/etc/systemd/system/patch-report.timer`                      | root  | 644         |
+| `user/.bashrc`                         | `~/.bashrc`                                                   | user  | 644         |
+| `user/.config/htop/htoprc`             | `~/.config/htop/htoprc`                                       | user  | 644         |
 
 ## Configuration Details
 
@@ -72,6 +88,23 @@ channel is enabled.
 **Prerequisite:** The Docker GPG key must be present at `/etc/apt/keyrings/docker.asc` before
 this source is usable. The Ansible playbook handles this step.
 
+### apt/22ansible-auto-upgrades and apt/52ansible-unattended-upgrades
+
+APT periodic behaviour and the unattended-upgrade policy, in two files so the
+schedule and the policy can be changed independently.
+
+`22ansible-auto-upgrades` turns the periodic runs on.
+
+`52ansible-unattended-upgrades` restricts the runs to `Debian-Security` only.
+`trixie-updates`, backports and `contrib`/`non-free` stay manual, which is what
+the `patch` shell alias already covers. `Automatic-Reboot` is off.
+`Remove-Unused-Dependencies` is off too, since `clean` already handles it under supervision.
+
+There is deliberately no `Unattended-Upgrade::Mail`: unattended-upgrades calls
+`sendmail -t` without `-f`, so the envelope becomes `root@<provider hostname>`
+and the relay rejects it (`450 Sender address rejected: Domain not found`). The
+`patch-report` timer below sends the mail instead.
+
 ### exim/update-exim4.conf.conf
 
 Exim4 mail transfer agent configured as a **smarthost**, relaying all outbound mail through
@@ -81,12 +114,12 @@ without accepting external connections.
 
 Key settings:
 
-| Parameter                     | Value                         | Description                        |
-|-------------------------------|-------------------------------|------------------------------------|
-| `dc_eximconfig_configtype`    | `smarthost`                   | Relay mode, no local delivery      |
-| `dc_smarthost`                | `mail.infomaniak.com::587`    | Upstream SMTP relay with STARTTLS  |
-| `dc_local_interfaces`         | `127.0.0.1 ; ::1`            | Loopback only                      |
-| `dc_localdelivery`            | `mail_spool`                  | Local delivery format              |
+| Parameter                  | Value                      | Description                       |
+| -------------------------- | -------------------------- | --------------------------------- |
+| `dc_eximconfig_configtype` | `smarthost`                | Relay mode, no local delivery     |
+| `dc_smarthost`             | `mail.infomaniak.com::587` | Upstream SMTP relay with STARTTLS |
+| `dc_local_interfaces`      | `127.0.0.1 ; ::1`          | Loopback only                     |
+| `dc_localdelivery`         | `mail_spool`               | Local delivery format             |
 
 ### logrotate/docker-container
 
@@ -130,6 +163,38 @@ Handles two sets of log files:
 
 Both sections use daily rotation, 7-day retention, 10 MB size limit, and delayed compression.
 
+### scripts/patch-report
+
+Mails one report after the nightly security upgrade run: the packages that were
+installed, and whether a reboot is pending. Deployed to `~/bin`.
+
+- **Reboot detection:** compares `uname -r` with the newest installed
+  `linux-image-*`. Debian 13 has no `/var/run/reboot-required`: the package that
+  used to write it, `update-notifier-common`, does not exist in trixie.
+- **One mail per run, not per day:** the stamp in `~/.cache` means the log has to
+  move, so a night without updates stays silent.
+- **`sudo` use:** only for reading the root-owned upgrade log and for setting the
+  envelope sender, which exim honours only for a trusted user. This is the same
+  pattern as the `patch` and `clean` shell aliases.
+
+The envelope sender is `server+<hostname>@lgdweb.fr` and the recipient is
+`server+notif@lgdweb.fr`, matching the fail2ban jail settings
+(`destemail` / `sender`).
+
+### systemd/apt-daily-timer.conf and systemd/apt-daily-upgrade-timer.conf
+
+Drop-ins that move the two Debian apt timers off their default 06:00, when the
+operator is already at work. `apt-daily.timer` refreshes the package lists at
+02:30, `apt-daily-upgrade.timer` installs the security upgrades at 03:00.
+
+`OnCalendar` is a list: an empty assignment comes first so the drop-in replaces
+the 06:00 entry instead of appending to it.
+
+### systemd/patch-report.service and systemd/patch-report.timer
+
+The timer fires at 03:40, right after the upgrade run. The service is a one-shot running as the
+admin user (`User=supertux`, `ExecStart=%h/bin/patch-report`).
+
 ### ssh/authorized_keys
 
 Contains a single RSA 4096-bit public key identified by the OpenPGP key ID `0xB4C0BAB3`.
@@ -168,19 +233,19 @@ Htop v3.2.2 configuration with:
 The following packages should be installed (or will be installed by the Ansible playbook) for
 the configuration files to take effect:
 
-| Package / Service     | Required By                        |
-|-----------------------|------------------------------------|
-| `apt`                 | `apt/sources.list`, `apt/docker.list` |
-| `docker-ce`           | `apt/docker.list`, `logrotate/docker-container` |
-| `exim4`               | `exim/update-exim4.conf.conf`      |
-| `logrotate`           | `logrotate/*`                      |
-| `fail2ban` (Docker)   | `logrotate/fail2ban`               |
-| `nginx` (Docker)      | `logrotate/nginx`                  |
-| `openssh-server`      | `ssh/authorized_keys`              |
-| `bash`                | `user/.bashrc`                     |
-| `htop`                | `user/.config/htop/htoprc`         |
-| `colordiff`           | `user/.bashrc` (diff alias)        |
-| `nano`                | `user/.bashrc` (editor config)     |
+| Package / Service   | Required By                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| `apt`               | `apt/sources.list`, `apt/docker.list`, `apt/22ansible-auto-upgrades`, `apt/52ansible-unattended-upgrades` |
+| `docker-ce`         | `apt/docker.list`, `logrotate/docker-container`                                                  |
+| `exim4`             | `exim/update-exim4.conf.conf`                                                                    |
+| `logrotate`         | `logrotate/*`                                                                                    |
+| `fail2ban` (Docker) | `logrotate/fail2ban`                                                                             |
+| `nginx` (Docker)    | `logrotate/nginx`                                                                                |
+| `openssh-server`    | `ssh/authorized_keys`                                                                            |
+| `bash`              | `user/.bashrc`, `scripts/patch-report`                                                           |
+| `htop`              | `user/.config/htop/htoprc`                                                                       |
+| `colordiff`         | `user/.bashrc` (diff alias)                                                                      |
+| `nano`              | `user/.bashrc` (editor config)                                                                   |
 
 ## Customization Guide
 
@@ -188,21 +253,24 @@ Before deploying to your own infrastructure, review and update the following fil
 
 ### Must Change
 
-| File                           | What to Change                                              |
-|--------------------------------|-------------------------------------------------------------|
-| `ssh/authorized_keys`          | Replace with your own SSH public key(s)                     |
-| `exim/update-exim4.conf.conf`  | Update `dc_smarthost` with your SMTP relay provider and port |
+| File                          | What to Change                                               |
+| ----------------------------- | ------------------------------------------------------------ |
+| `ssh/authorized_keys`         | Replace with your own SSH public key(s)                      |
+| `exim/update-exim4.conf.conf` | Update `dc_smarthost` with your SMTP relay provider and port |
 
 ### May Change
 
-| File                           | What to Change                                              |
-|--------------------------------|-------------------------------------------------------------|
-| `apt/sources.list`             | Adjust if targeting a different Debian release               |
-| `apt/docker.list`              | Change architecture if not `amd64`; update release codename  |
-| `logrotate/fail2ban`           | Update container name filter if your naming convention differs |
-| `logrotate/nginx`              | Update log paths or container name filters as needed         |
-| `user/.bashrc`                 | Modify aliases, prompt colors, or history settings to taste  |
-| `user/.config/htop/htoprc`     | Adjust columns, layout, or refresh interval                  |
+| File                                          | What to Change                                                  |
+| --------------------------------------------- | --------------------------------------------------------------- |
+| `apt/sources.list`                            | Adjust if targeting a different Debian release                  |
+| `apt/docker.list`                             | Change architecture if not `amd64`; update release codename     |
+| `apt/52ansible-unattended-upgrades`           | Wide the origins if `trixie-updates` or backports should follow |
+| `logrotate/fail2ban`                          | Update container name filter if your naming convention differs  |
+| `scripts/patch-report`                        | Update the `lgdweb.fr` sender and recipient addresses           |
+| `systemd/*.timer`, `systemd/apt-*-timer.conf` | Adjust the hours                                                |
+| `logrotate/nginx`                             | Update log paths or container name filters as needed            |
+| `user/.bashrc`                                | Modify aliases, prompt colors, or history settings to taste     |
+| `user/.config/htop/htoprc`                    | Adjust columns, layout, or refresh interval                     |
 
 ### Log Paths
 
