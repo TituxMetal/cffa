@@ -1,0 +1,40 @@
+#!/bin/sh
+# Mails one report after the nightly security upgrade run: what was installed,
+# and whether a reboot is pending.
+#
+# Runs from the patch-report systemd timer as the admin user.
+set -eu
+
+LOG=/var/log/unattended-upgrades/unattended-upgrades.log
+STAMP="$HOME/.cache/patch-report.stamp"
+
+[ -f "$LOG" ] || exit 0
+
+mkdir -p "$(dirname "$STAMP")"
+[ -f "$STAMP" ] || : > "$STAMP"
+
+# One mail per run, not one per day: the log only moves when an upgrade ran.
+[ "$LOG" -nt "$STAMP" ] || exit 0
+
+running=$(uname -r)
+installed=$(dpkg-query -W -f='${Package}\n' 'linux-image-[0-9]*' 2>/dev/null |
+            sed 's/^linux-image-//' | sort -V | tail -1)
+
+reboot=no
+if [ -n "$installed" ] && [ "$installed" != "$running" ]; then
+  reboot=yes
+fi
+
+host=$(hostname -s)
+log=$(sudo -n tail -n 40 "$LOG")
+
+{
+  printf 'From: server+%s@lgdweb.fr\n' "$host"
+  printf 'To: server+notif@lgdweb.fr\n'
+  printf 'Subject: [%s] security upgrades, reboot: %s\n\n' "$host" "$reboot"
+  printf 'Host: %s\nRunning kernel: %s\nInstalled kernel: %s\nReboot required: %s\n\n' \
+         "$host" "$running" "$installed" "$reboot"
+  printf '%s\n' "$log"
+} | sudo -n /usr/sbin/sendmail -f "server+$host@lgdweb.fr" -t
+
+touch "$STAMP"

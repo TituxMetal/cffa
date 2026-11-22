@@ -1,0 +1,7 @@
+[Unit]
+Description=Daily security upgrade report
+
+[Service]
+Type=oneshot
+User=supertux
+ExecStart=%h/bin/patch-report

@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily security upgrade report
+
+[Timer]
+# 03:40, right after the apt-daily-upgrade run moved to 03:00
+OnCalendar=*-*-* 03:40
+RandomizedDelaySec=5m
+Persistent=true
+
+[Install]
+WantedBy=timers.target
