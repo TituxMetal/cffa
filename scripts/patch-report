@@ -8,17 +8,18 @@ set -eu
 LOG=/var/log/unattended-upgrades/unattended-upgrades.log
 STAMP="$HOME/.cache/patch-report.stamp"
 
-[ -f "$LOG" ] || exit 0
+sudo -n test -f "$LOG" || exit 0
+
+if [ -f "$STAMP" ]; then
+  sudo -n test "$LOG" -nt "$STAMP" || exit 0
+fi
 
 mkdir -p "$(dirname "$STAMP")"
-[ -f "$STAMP" ] || : > "$STAMP"
-
-# One mail per run, not one per day: the log only moves when an upgrade ran.
-[ "$LOG" -nt "$STAMP" ] || exit 0
 
 running=$(uname -r)
-installed=$(dpkg-query -W -f='${Package}\n' 'linux-image-[0-9]*' 2>/dev/null |
-            sed 's/^linux-image-//' | sort -V | tail -1)
+installed=$(dpkg-query -W -f='${db:Status-Status} ${Package}\n' 'linux-image-[0-9]*' 2>/dev/null |
+            awk '$1 == "installed" && $2 !~ /-unsigned$/ { sub(/^linux-image-/, "", $2); print $2 }' |
+            sort -V | tail -1)
 
 reboot=no
 if [ -n "$installed" ] && [ "$installed" != "$running" ]; then
