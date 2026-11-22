@@ -98,7 +98,10 @@ schedule and the policy can be changed independently.
 `52ansible-unattended-upgrades` restricts the runs to `Debian-Security` only.
 `trixie-updates`, backports and `contrib`/`non-free` stay manual, which is what
 the `patch` shell alias already covers. `Automatic-Reboot` is off.
-`Remove-Unused-Dependencies` is off too, since `clean` already handles it under supervision.
+`Remove-Unused-Dependencies` is off, since `clean` already handles it under supervision.
+`Remove-Unused-Kernel-Packages` is on: the kernel chain is pruned after each
+upgrade, otherwise the old images pile up. The value is upstream's default, written
+here so a future version cannot change it silently.
 
 `#clear` comes first on purpose: the `Origins-Pattern` Debian ships in
 `50unattended-upgrades` is a list, and apt appends to a list instead of
