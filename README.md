@@ -100,6 +100,11 @@ schedule and the policy can be changed independently.
 the `patch` shell alias already covers. `Automatic-Reboot` is off.
 `Remove-Unused-Dependencies` is off too, since `clean` already handles it under supervision.
 
+`#clear` comes first on purpose: the `Origins-Pattern` Debian ships in
+`50unattended-upgrades` is a list, and apt appends to a list instead of
+replacing it, so without the clear the main `trixie` repository would stay
+allowed alongside `trixie-security`.
+
 There is deliberately no `Unattended-Upgrade::Mail`: unattended-upgrades calls
 `sendmail -t` without `-f`, so the envelope becomes `root@<provider hostname>`
 and the relay rejects it (`450 Sender address rejected: Domain not found`). The
